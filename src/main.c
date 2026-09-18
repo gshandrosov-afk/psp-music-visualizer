@@ -294,7 +294,7 @@ static int lbl_t=0;
 static unsigned int __attribute__((aligned(16))) list[262144];
 
 int main(void){
-    setup_cb(); // Правильный запуск системных колбэков выхода
+    setup_cbs(); // Правильный запуск системных колбэков выхода
 
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
@@ -302,7 +302,7 @@ int main(void){
     // Инициализируем графический движок GU, чтобы разбудить видеочип
     sceGuInit();
     sceGuStart(GU_DIRECT, list);
-    sceGuDrawBuffer(GU_PSM_565, (void*)0, BUF_WIDTH);
+    sceGuDrawBuffer(GU_PSM_5650, (void*)0, BUF_WIDTH);
     sceGuDispBuffer(SCREEN_W, SCREEN_H, (void*)0x88000, BUF_WIDTH);
     sceGuDepthBuffer((void*)0x110000, BUF_WIDTH);
     sceGuOffset(2048 - (SCREEN_W / 2), 2048 - (SCREEN_H / 2));
