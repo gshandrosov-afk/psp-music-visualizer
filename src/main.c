@@ -294,7 +294,7 @@ static int lbl_t=0;
 static unsigned int __attribute__((aligned(16))) list[262144];
 
 int main(void){
-    setup_cbs(); // Правильный запуск системных колбэков выхода
+   // setup_cbs(); // Правильный запуск системных колбэков выхода
 
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
