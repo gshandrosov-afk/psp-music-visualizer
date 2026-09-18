@@ -290,34 +290,77 @@ typedef void(*Fn)(void);
 static Fn fns[NUM_MODES]={m0,m1,m2,m3,m4,m5,m6,m7};
 static int lbl_t=0;
  
+// Настройки для графического движка GU
+static unsigned int __attribute__((aligned(16))) list[262144];
+
 int main(void){
-    setup_cbs();
+    setup_cb(); // Правильный запуск системных колбэков выхода
+
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
-    sceDisplaySetMode(0,SCREEN_W,SCREEN_H);
- 
-    // FIX: правильная передача адреса framebuffer для PSP
-    sceDisplaySetFrameBuf(fb, BUF_WIDTH, PSP_DISPLAY_PIXEL_FORMAT_565, PSP_DISPLAY_SETBUF_NEXTFRAME);
- 
+
+    // Инициализируем графический движок GU, чтобы разбудить видеочип
+    sceGuInit();
+    sceGuStart(GU_DIRECT, list);
+    sceGuDrawBuffer(GU_PSM_565, (void*)0, BUF_WIDTH);
+    sceGuDispBuffer(SCREEN_W, SCREEN_H, (void*)0x88000, BUF_WIDTH);
+    sceGuDepthBuffer((void*)0x110000, BUF_WIDTH);
+    sceGuOffset(2048 - (SCREEN_W / 2), 2048 - (SCREEN_H / 2));
+    sceGuViewport(2048, 2048, SCREEN_W, SCREEN_H);
+    sceGuDepthRange(65535, 0);
+    sceGuScissor(0, 0, SCREEN_W, SCREEN_H);
+    sceGuEnable(GU_SCISSOR_TEST);
+    sceGuDisplay(GU_TRUE);
+    sceGuFinish();
+    sceGuSync(0, 0);
+
     srand(sceKernelGetSystemTimeLow());
-    lbl_t=90;
- 
+    lbl_t = 90;
+
     while(!done){
-        SceCtrlData pad; sceCtrlReadBufferPositive(&pad,1);
-        static unsigned int prev=0;
-        unsigned int pr=pad.Buttons&~prev;
-        if(pr&PSP_CTRL_LTRIGGER){cur_mode=(cur_mode-1+NUM_MODES)%NUM_MODES;lbl_t=90;}
-        if(pr&PSP_CTRL_RTRIGGER){cur_mode=(cur_mode+1)%NUM_MODES;lbl_t=90;}
-        if(pr&PSP_CTRL_TRIANGLE){trk_n++;trk_s=0;}
-        if(pr&PSP_CTRL_CROSS){if(trk_n>1){trk_n--;trk_s=0;}}
-        prev=pad.Buttons;
+        SceCtrlData pad; 
+        sceCtrlReadBufferPositive(&pad, 1);
+        
+        static unsigned int prev = 0;
+        unsigned int pr = pad.Buttons & ~prev;
+        
+        if(pr & PSP_CTRL_LTRIGGER){ cur_mode = (cur_mode - 1 + NUM_MODES) % NUM_MODES; lbl_t = 90; }
+        if(pr & PSP_CTRL_RTRIGGER){ cur_mode = (cur_mode + 1) % NUM_MODES; lbl_t = 90; }
+        if(pr & PSP_CTRL_TRIANGLE){ trk_n++; trk_s = 0; }
+        if(pr & PSP_CTRL_CROSS){ if(trk_n > 1){ trk_n--; trk_s = 0; } }
+        
+        prev = pad.Buttons;
+        
+        // Обновляем логику прыгающих столбиков
         upd_bars();
+        
+        // Начинаем отрисовку кадра
+        sceGuStart(GU_DIRECT, list);
+        
+        // Очищаем экран в глубокий сине-чёрный цвет (очистка буфера)
+        sceGuClearColor(0xff1a0d00); 
+        sceGuClear(GU_COLOR_BUFFER_BIT);
+        
+        // Запускаем текущий режим визуализации
         fns[cur_mode]();
-        if(lbl_t>0){lbl_t--;dtext((SCREEN_W-(int)strlen(mnames[cur_mode])*6)/2,4,mnames[cur_mode],rgb(0,204,255),1);}
-        if((tick%60)==0) trk_s++;
+        
+        // Выводим текст
+        if(lbl_t > 0){ 
+            lbl_t--; 
+            dtext((SCREEN_W - (int)strlen(mnames[cur_mode]) * 6) / 2, 4, mnames[cur_mode], rgb(0, 204, 255), 1); 
+        }
+        
+        if((tick % 60) == 0) trk_s++;
         tick++;
+        
+        // Завершаем кадр и отправляем его на экран
+        sceGuFinish();
+        sceGuSync(0, 0);
+        
         sceDisplayWaitVblankStart();
     }
+
+    sceGuDisplay(GU_FALSE);
     sceKernelExitGame();
     return 0;
 }
